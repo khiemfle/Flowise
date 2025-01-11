@@ -443,9 +443,23 @@ const Canvas = () => {
         setDragStartPosition(node.position)
     }, [dragStartPosition, setNodes])
 
-    const onNodeDragStop = useCallback(() => {
+    const onNodeDragStop = useCallback((event, node) => {
+        // Update final positions of all selected nodes
+        setNodes((nds) =>
+            nds.map((n) => {
+                if (n.data.selected || n.id === node.id) {
+                    return {
+                        ...n,
+                        position: n.position,
+                        positionAbsolute: n.positionAbsolute || n.position
+                    }
+                }
+                return n
+            })
+        )
         setDragStartPosition(null)
-    }, [])
+        setTimeout(() => setDirty(), 0)
+    }, [setNodes])
 
     // ==============================|| useEffect ||============================== //
 
