@@ -172,12 +172,12 @@ const Canvas = () => {
             
             if (selectedNodes.length > 0) {
                 const clipboardData = {
-                    nodes: selectedNodes.map(node => ({
+                    copiedNodes: selectedNodes.map(node => ({
                         ...node,
                         position: { ...node.position },
                         data: { ...node.data }
                     })),
-                    edges: selectedEdges
+                    copiedEdges: selectedEdges
                 }
                 
                 navigator.clipboard.writeText(JSON.stringify(clipboardData))
@@ -196,7 +196,7 @@ const Canvas = () => {
             navigator.clipboard.readText()
                 .then(text => {
                     try {
-                        const { nodes: copiedNodes, edges: copiedEdges } = JSON.parse(text)
+                        const { copiedNodes, copiedEdges } = JSON.parse(text)
                         if (!Array.isArray(copiedNodes)) return
 
                         const offsetX = 400
