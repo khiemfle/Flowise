@@ -94,8 +94,141 @@ const Canvas = () => {
     const [selectedNode, setSelectedNode] = useState(null)
     const [isUpsertButtonEnabled, setIsUpsertButtonEnabled] = useState(false)
     const [isSyncNodesButtonEnabled, setIsSyncNodesButtonEnabled] = useState(false)
+    const [copiedNodes, setCopiedNodes] = useState([])
+    const [copiedEdges, setCopiedEdges] = useState([])
 
     const reactFlowWrapper = useRef(null)
+
+    // ==============================|| Copy/Paste Handlers ||============================== //
+
+    const prepareDuplicatedNode = (originalNode, newNodeId, offsetX = 0, offsetY = 0) => {
+        const clonedNode = cloneDeep(originalNode)
+        const duplicatedNode = {
+            ...clonedNode,
+            id: newNodeId,
+            position: {
+                x: clonedNode.position.x + offsetX,
+                y: clonedNode.position.y + offsetY
+            },
+            positionAbsolute: {
+                x: clonedNode.positionAbsolute.x + offsetX,
+                y: clonedNode.positionAbsolute.y + offsetY
+            },
+            data: {
+                ...clonedNode.data,
+                id: newNodeId
+            },
+            selected: false
+        }
+
+        // Update IDs in input parameters and anchors
+        const inputKeys = ['inputParams', 'inputAnchors']
+        for (const key of inputKeys) {
+            for (const item of duplicatedNode.data[key]) {
+                if (item.id) {
+                    item.id = item.id.replace(originalNode.id, newNodeId)
+                }
+            }
+        }
+
+        // Update IDs in output anchors
+        const outputKeys = ['outputAnchors']
+        for (const key of outputKeys) {
+            for (const item of duplicatedNode.data[key]) {
+                if (item.id) {
+                    item.id = item.id.replace(originalNode.id, newNodeId)
+                }
+                if (item.options) {
+                    for (const output of item.options) {
+                        output.id = output.id.replace(originalNode.id, newNodeId)
+                    }
+                }
+            }
+        }
+
+        // Clear connected inputs
+        for (const inputName in duplicatedNode.data.inputs) {
+            if (
+                typeof duplicatedNode.data.inputs[inputName] === 'string' &&
+                duplicatedNode.data.inputs[inputName].startsWith('{{') &&
+                duplicatedNode.data.inputs[inputName].endsWith('}}')
+            ) {
+                duplicatedNode.data.inputs[inputName] = ''
+            } else if (Array.isArray(duplicatedNode.data.inputs[inputName])) {
+                duplicatedNode.data.inputs[inputName] = duplicatedNode.data.inputs[inputName].filter(
+                    (item) => !(typeof item === 'string' && item.startsWith('{{') && item.endsWith('}}'))
+                )
+            }
+        }
+
+        return duplicatedNode
+    }
+
+    const handleCopy = useCallback((event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
+            const selectedNodes = nodes.filter(node => node.selected)
+            const selectedEdges = edges.filter(edge => 
+                selectedNodes.find(node => node.id === edge.source) && 
+                selectedNodes.find(node => node.id === edge.target)
+            )
+            
+            if (selectedNodes.length > 0) {
+                const nodesToCopy = selectedNodes.map(node => ({
+                    ...node,
+                    position: { ...node.position },
+                    data: { ...node.data }
+                }))
+                
+                setCopiedNodes(nodesToCopy)
+                setCopiedEdges(selectedEdges)
+                console.log('Copied Nodes:', nodesToCopy)
+                console.log('Copied Edges:', selectedEdges)
+            }
+        }
+    }, [nodes, edges])
+
+    const handlePaste = useCallback((event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'v' && copiedNodes.length > 0) {
+            const offsetX = 400
+            const offsetY = 0
+            
+            // Create new nodes with unique IDs
+            const newNodes = copiedNodes.map(node => {
+                const newNodeId = getUniqueNodeId(node.data, nodes)
+                return prepareDuplicatedNode(node, newNodeId, offsetX, offsetY)
+            })
+
+            // Create new edges between the pasted nodes
+            const newEdges = copiedEdges.map(edge => {
+                const sourceNode = copiedNodes.find(n => n.id === edge.source)
+                const targetNode = copiedNodes.find(n => n.id === edge.target)
+                if (!sourceNode || !targetNode) return null
+
+                const newSourceId = newNodes.find(n => n.data.name === sourceNode.data.name).id
+                const newTargetId = newNodes.find(n => n.data.name === targetNode.data.name).id
+
+                return {
+                    ...edge,
+                    id: `${newSourceId}-${edge.sourceHandle}-${newTargetId}-${edge.targetHandle}`,
+                    source: newSourceId,
+                    target: newTargetId
+                }
+            }).filter(Boolean)
+
+            setNodes(nds => [...nds, ...newNodes])
+            setEdges(eds => [...eds, ...newEdges])
+            setTimeout(() => setDirty(), 0)
+        }
+    }, [copiedNodes, copiedEdges, nodes, setNodes, setEdges])
+
+    useEffect(() => {
+        document.addEventListener('keydown', handleCopy)
+        document.addEventListener('keydown', handlePaste)
+        return () => {
+            document.removeEventListener('keydown', handleCopy)
+            document.removeEventListener('keydown', handlePaste)
+        }
+    }, [handleCopy, handlePaste])
 
     // ==============================|| Selection Handler ||============================== //
 
