@@ -94,8 +94,6 @@ const Canvas = () => {
     const [selectedNode, setSelectedNode] = useState(null)
     const [isUpsertButtonEnabled, setIsUpsertButtonEnabled] = useState(false)
     const [isSyncNodesButtonEnabled, setIsSyncNodesButtonEnabled] = useState(false)
-    const [copiedNodes, setCopiedNodes] = useState([])
-    const [copiedEdges, setCopiedEdges] = useState([])
 
     const reactFlowWrapper = useRef(null)
 
@@ -173,65 +171,84 @@ const Canvas = () => {
             )
             
             if (selectedNodes.length > 0) {
-                const nodesToCopy = selectedNodes.map(node => ({
-                    ...node,
-                    position: { ...node.position },
-                    data: { ...node.data }
-                }))
+                const clipboardData = {
+                    nodes: selectedNodes.map(node => ({
+                        ...node,
+                        position: { ...node.position },
+                        data: { ...node.data }
+                    })),
+                    edges: selectedEdges
+                }
                 
-                setCopiedNodes(nodesToCopy)
-                setCopiedEdges(selectedEdges)
-                console.log('Copied Nodes:', nodesToCopy)
-                console.log('Copied Edges:', selectedEdges)
+                navigator.clipboard.writeText(JSON.stringify(clipboardData))
+                    .then(() => {
+                        console.log('Copied to clipboard:', clipboardData)
+                    })
+                    .catch(err => {
+                        console.error('Failed to copy to clipboard:', err)
+                    })
             }
         }
     }, [nodes, edges])
 
     const handlePaste = useCallback((event) => {
-        if ((event.ctrlKey || event.metaKey) && event.key === 'v' && copiedNodes.length > 0) {
-            const offsetX = 400
-            const offsetY = 0
-            
-            // Create new nodes with unique IDs
-            const newNodes = copiedNodes.map(node => {
-                const newNodeId = getUniqueNodeId(node.data, nodes)
-                return {
-                    ...prepareDuplicatedNode(node, newNodeId, offsetX, offsetY),
-                    selected: true // Mark new nodes as selected
-                }
-            })
+        if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
+            navigator.clipboard.readText()
+                .then(text => {
+                    try {
+                        const { nodes: copiedNodes, edges: copiedEdges } = JSON.parse(text)
+                        if (!Array.isArray(copiedNodes)) return
 
-            // Create new edges between the pasted nodes
-            const newEdges = copiedEdges.map(edge => {
-                const sourceNode = copiedNodes.find(n => n.id === edge.source)
-                const targetNode = copiedNodes.find(n => n.id === edge.target)
-                if (!sourceNode || !targetNode) return null
+                        const offsetX = 400
+                        const offsetY = 0
+                        
+                        // Create new nodes with unique IDs
+                        const newNodes = copiedNodes.map(node => {
+                            const newNodeId = getUniqueNodeId(node.data, nodes)
+                            return {
+                                ...prepareDuplicatedNode(node, newNodeId, offsetX, offsetY),
+                                selected: true // Mark new nodes as selected
+                            }
+                        })
 
-                const newSourceId = newNodes.find(n => n.data.name === sourceNode.data.name).id
-                const newTargetId = newNodes.find(n => n.data.name === targetNode.data.name).id
+                        // Create new edges between the pasted nodes
+                        const newEdges = copiedEdges.map(edge => {
+                            const sourceNode = copiedNodes.find(n => n.id === edge.source)
+                            const targetNode = copiedNodes.find(n => n.id === edge.target)
+                            if (!sourceNode || !targetNode) return null
 
-                return {
-                    ...edge,
-                    id: `${newSourceId}-${edge.sourceHandle}-${newTargetId}-${edge.targetHandle}`,
-                    source: newSourceId,
-                    target: newTargetId,
-                    selected: true // Mark new edges as selected
-                }
-            }).filter(Boolean)
+                            const newSourceId = newNodes.find(n => n.data.name === sourceNode.data.name).id
+                            const newTargetId = newNodes.find(n => n.data.name === targetNode.data.name).id
 
-            // Deselect all existing nodes and edges
-            setNodes(nds => [
-                ...nds.map(n => ({ ...n, selected: false })),
-                ...newNodes
-            ])
-            setEdges(eds => [
-                ...eds.map(e => ({ ...e, selected: false })),
-                ...newEdges
-            ])
-            
-            setTimeout(() => setDirty(), 0)
+                            return {
+                                ...edge,
+                                id: `${newSourceId}-${edge.sourceHandle}-${newTargetId}-${edge.targetHandle}`,
+                                source: newSourceId,
+                                target: newTargetId,
+                                selected: true // Mark new edges as selected
+                            }
+                        }).filter(Boolean)
+
+                        // Deselect all existing nodes and edges
+                        setNodes(nds => [
+                            ...nds.map(n => ({ ...n, selected: false })),
+                            ...newNodes
+                        ])
+                        setEdges(eds => [
+                            ...eds.map(e => ({ ...e, selected: false })),
+                            ...newEdges
+                        ])
+                        
+                        setTimeout(() => setDirty(), 0)
+                    } catch (err) {
+                        console.error('Failed to parse clipboard data:', err)
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to read from clipboard:', err)
+                })
         }
-    }, [copiedNodes, copiedEdges, nodes, setNodes, setEdges])
+    }, [nodes, setNodes, setEdges])
 
     useEffect(() => {
         document.addEventListener('keydown', handleCopy)
