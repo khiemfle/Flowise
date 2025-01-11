@@ -93,6 +93,7 @@ const Canvas = () => {
 
     const [selectedNode, setSelectedNode] = useState(null)
     const [selectedNodes, setSelectedNodes] = useState([])
+    const [dragStartPosition, setDragStartPosition] = useState(null)
     const [isUpsertButtonEnabled, setIsUpsertButtonEnabled] = useState(false)
     const [isSyncNodesButtonEnabled, setIsSyncNodesButtonEnabled] = useState(false)
 
@@ -409,6 +410,43 @@ const Canvas = () => {
         setIsSyncNodesButtonEnabled(false)
     }
 
+    const onNodeDragStart = useCallback((event, node) => {
+        setDragStartPosition({ x: node.position.x, y: node.position.y })
+    }, [])
+
+    const onNodeDrag = useCallback((event, node) => {
+        if (!dragStartPosition) return
+
+        const deltaX = node.position.x - dragStartPosition.x
+        const deltaY = node.position.y - dragStartPosition.y
+
+        setNodes((nds) =>
+            nds.map((n) => {
+                if (n.data.selected && n.id !== node.id) {
+                    // Move all other selected nodes by the same delta
+                    n.position = {
+                        x: n.position.x + deltaX,
+                        y: n.position.y + deltaY
+                    }
+                    if (n.positionAbsolute) {
+                        n.positionAbsolute = {
+                            x: n.positionAbsolute.x + deltaX,
+                            y: n.positionAbsolute.y + deltaY
+                        }
+                    }
+                }
+                return n
+            })
+        )
+        
+        // Update drag start position for next drag event
+        setDragStartPosition(node.position)
+    }, [dragStartPosition, setNodes])
+
+    const onNodeDragStop = useCallback(() => {
+        setDragStartPosition(null)
+    }, [])
+
     // ==============================|| useEffect ||============================== //
 
     // Get specific chatflow successful
@@ -556,15 +594,17 @@ const Canvas = () => {
                                 nodes={nodes}
                                 edges={edges}
                                 onNodesChange={onNodesChange}
-                                onNodeClick={onNodeClick}
                                 onEdgesChange={onEdgesChange}
-                                onDrop={onDrop}
-                                onDragOver={onDragOver}
-                                onNodeDragStop={setDirty}
-                                nodeTypes={nodeTypes}
-                                edgeTypes={edgeTypes}
                                 onConnect={onConnect}
                                 onInit={setReactFlowInstance}
+                                onDrop={onDrop}
+                                onDragOver={onDragOver}
+                                onNodeClick={onNodeClick}
+                                onNodeDragStart={onNodeDragStart}
+                                onNodeDrag={onNodeDrag}
+                                onNodeDragStop={onNodeDragStop}
+                                nodeTypes={nodeTypes}
+                                edgeTypes={edgeTypes}
                                 fitView
                                 deleteKeyCode={canvas.canvasDialogShow ? null : ['Delete']}
                                 minZoom={0.1}
