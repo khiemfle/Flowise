@@ -97,6 +97,13 @@ const Canvas = () => {
 
     const reactFlowWrapper = useRef(null)
 
+    // ==============================|| Selection Handler ||============================== //
+
+    const onSelectionChange = useCallback(({ nodes: selectedNodes, edges: selectedEdges }) => {
+        console.log('Selected Nodes:', selectedNodes)
+        console.log('Selected Edges:', selectedEdges)
+    }, [])
+
     // ==============================|| Chatflow API ||============================== //
 
     const getNodesApi = useApi(nodesApi.getAllNodes)
@@ -542,16 +549,16 @@ const Canvas = () => {
                                 nodes={nodes}
                                 edges={edges}
                                 onNodesChange={onNodesChange}
-                                onNodeClick={onNodeClick}
                                 onEdgesChange={onEdgesChange}
-                                onDrop={onDrop}
-                                onDragOver={onDragOver}
-                                onNodeDragStop={setDirty}
-                                nodeTypes={nodeTypes}
-                                edgeTypes={edgeTypes}
                                 onConnect={onConnect}
                                 onInit={setReactFlowInstance}
-                                fitView
+                                onDrop={onDrop}
+                                onDragOver={onDragOver}
+                                onNodeClick={onNodeClick}
+                                onSelectionChange={onSelectionChange}
+                                nodeTypes={nodeTypes}
+                                edgeTypes={edgeTypes}
+                                onNodeDragStop={setDirty}
                                 deleteKeyCode={canvas.canvasDialogShow ? null : ['Delete']}
                                 minZoom={0.1}
                                 className='chatflow-canvas'
