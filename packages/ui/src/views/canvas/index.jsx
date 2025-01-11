@@ -92,6 +92,7 @@ const Canvas = () => {
     const [edges, setEdges, onEdgesChange] = useEdgesState()
 
     const [selectedNode, setSelectedNode] = useState(null)
+    const [selectedNodes, setSelectedNodes] = useState([])
     const [isUpsertButtonEnabled, setIsUpsertButtonEnabled] = useState(false)
     const [isSyncNodesButtonEnabled, setIsSyncNodesButtonEnabled] = useState(false)
 
@@ -242,17 +243,30 @@ const Canvas = () => {
         setNodes((nds) =>
             nds.map((node) => {
                 if (node.id === clickedNode.id) {
-                    node.data = {
-                        ...node.data,
-                        selected: true
+                    // Toggle selection for clicked node
+                    const isCurrentlySelected = node.data.selected || false
+                    const newSelected = !isCurrentlySelected
+
+                    // Update selectedNodes list
+                    if (newSelected) {
+                        setSelectedNodes(prev => {
+                            const newSelectedNodes = [...prev, node]
+                            console.log('Selected Nodes:', newSelectedNodes)
+                            return newSelectedNodes
+                        })
+                    } else {
+                        setSelectedNodes(prev => {
+                            const newSelectedNodes = prev.filter(n => n.id !== node.id)
+                            console.log('Selected Nodes:', newSelectedNodes)
+                            return newSelectedNodes
+                        })
                     }
-                } else {
+
                     node.data = {
                         ...node.data,
-                        selected: false
+                        selected: newSelected
                     }
                 }
-
                 return node
             })
         )
