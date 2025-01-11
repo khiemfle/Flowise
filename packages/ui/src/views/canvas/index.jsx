@@ -195,7 +195,10 @@ const Canvas = () => {
             // Create new nodes with unique IDs
             const newNodes = copiedNodes.map(node => {
                 const newNodeId = getUniqueNodeId(node.data, nodes)
-                return prepareDuplicatedNode(node, newNodeId, offsetX, offsetY)
+                return {
+                    ...prepareDuplicatedNode(node, newNodeId, offsetX, offsetY),
+                    selected: true // Mark new nodes as selected
+                }
             })
 
             // Create new edges between the pasted nodes
@@ -211,12 +214,21 @@ const Canvas = () => {
                     ...edge,
                     id: `${newSourceId}-${edge.sourceHandle}-${newTargetId}-${edge.targetHandle}`,
                     source: newSourceId,
-                    target: newTargetId
+                    target: newTargetId,
+                    selected: true // Mark new edges as selected
                 }
             }).filter(Boolean)
 
-            setNodes(nds => [...nds, ...newNodes])
-            setEdges(eds => [...eds, ...newEdges])
+            // Deselect all existing nodes and edges
+            setNodes(nds => [
+                ...nds.map(n => ({ ...n, selected: false })),
+                ...newNodes
+            ])
+            setEdges(eds => [
+                ...eds.map(e => ({ ...e, selected: false })),
+                ...newEdges
+            ])
+            
             setTimeout(() => setDirty(), 0)
         }
     }, [copiedNodes, copiedEdges, nodes, setNodes, setEdges])
